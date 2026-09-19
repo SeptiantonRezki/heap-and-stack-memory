@@ -1,0 +1,51 @@
+function processOrders() {
+  // Skenario: Memproses 10 juta data transaksi
+  for (let i = 0; i < 10_000_000; i++) {
+    
+    // ❌ MASALAH 1: Alokasi Object & Array Baru di Heap Setiap Iterasi
+    // Jutaan objek kecil berumur sangat pendek ini terus membanjiri Heap (Young Generation)
+    const tempPayload = {
+      id: i,
+      timestamp: new Date().getTime(),
+      metadata: [i * 2, i * 3, i * 4] 
+    };
+
+    // ❌ MASALAH 2: Mengubah/Menggabungkan String di Heap
+    // String bersifat immutable. Setiap penggabungan string membuat objek string baru di Heap.
+    const logMessage = "Processing order ID: " + tempPayload.id + " at " + tempPayload.timestamp;
+
+    if (i % 1_000_000 === 0) {
+      console.log(logMessage);
+    }
+  } 
+  // Result: GC terpaksa "Stop-The-World" berulang kali untuk membersihkan 10 juta objek di atas!
+}
+
+processOrders();
+
+// =====================================================|||||||||=====================================================
+
+function processOrdersOptimized() {
+  const TOTAL_ORDERS = 10_000_000;
+
+  // ✅ SOLUSI 1: Object Pooling / Reuse Object Tunggal
+  // Alokasi memori hanya 1 KALI di Heap, lalu isi nilainya diperbarui (mutate)
+  const reusePayload = {
+    id: 0,
+    timestamp: 0
+  };
+
+  for (let i = 0; i < TOTAL_ORDERS; i++) {
+    // Cukup update properti objek yang sudah ada (tidak bikin objek baru di Heap)
+    reusePayload.id = i;
+    reusePayload.timestamp = Date.now();
+
+    if (i % 1_000_000 === 0) {
+      // ✅ SOLUSI 2: Hindari Penggabungan String Berlebih
+      console.log("Processing order ID:", reusePayload.id, "at", reusePayload.timestamp);
+    }
+  }
+  // Result: Alokasi Heap hampir NOL di dalam loop, GC santai dan CPU tetap stabil!
+}
+
+processOrdersOptimized();
